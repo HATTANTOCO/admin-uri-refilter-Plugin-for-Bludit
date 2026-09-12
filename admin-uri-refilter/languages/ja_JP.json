@@ -1,0 +1,14 @@
+{
+    "plugin-data":
+    {
+        "name": "Admin URI Refilter",
+        "description": "variables.php 内の ADMIN_URI_FILTER 定数を書き換えて管理画面のURLをカスタマイズします。コアアップデート時の自動復旧機能付き。"
+    },
+    "admin-url-filter": "管理画面 URI フィルター",
+    "core-file-rewrite": "Admin URI 書き換え",
+    "file-not-writable-warning": "警告: コアファイルの書き込み権限がありません。次のファイルのパーミッションを666に変更してください:",
+    "admin-uri-filter-constant": "ADMIN_URI_FILTER の値",
+    "core-reset-auto-recovered-alert": "コアファイルの初期化（リセット）を検知しました。URLフィルターは以前のカスタム設定 \"%s\" へ自動的に再適用されました。",
+    "core-rewrite-redirect-prompt": "設定ファイルの書き換えが完了しました。新しいURLの管理画面へ移動してください。",
+    "core-rewrite-redirect-btn": "新しいURLへ移動する"
+}

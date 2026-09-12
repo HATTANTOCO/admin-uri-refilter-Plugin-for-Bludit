@@ -1,0 +1,11 @@
+{
+    "name": "Admin URI Refilter",
+    "description": "Safely customizes your admin panel URL by changing the ADMIN_URI_FILTER constant, featuring an automatic recovery system after core updates.",
+    "author": "HATTA",
+    "email": "",
+    "website": "https://hattantoco.com",
+    "version": "1.0.0",
+    "releaseDate": "2026-09-12",
+    "license": "MIT",
+    "compatible": "3.22.0"
+}
