@@ -9,7 +9,6 @@
     "file-not-writable-warning": "Warning: The core file is not writable. Please change permissions to 666 for:",
     "admin-uri-filter-constant": "ADMIN_URI_FILTER Value",
     "core-rewrite-success-alert": "The admin URL has been customized to \"%s\". Please use this new URL for your next access.",
-    "core-reset-auto-recovered-alert": "Core file reset detected. The Admin URI filter has been automatically re-applied to your previous custom setting: \"%s\".",
     "core-rewrite-redirect-prompt": "The core file has been successfully rewritten. Please move to the new Admin URI workspace.",
     "core-rewrite-redirect-btn": "Go to New Admin URL"
 }
