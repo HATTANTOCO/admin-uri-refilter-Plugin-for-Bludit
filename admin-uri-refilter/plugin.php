@@ -12,7 +12,9 @@
 
 class pluginAdminUriRefilter extends Plugin {
 
-    // 1. Initialize the database (Tracks only the custom URL filter field)
+    /**
+     * Initialize the database (Tracks only the custom URL filter field)
+     */
     public function init()
     {
         $this->dbFields = array(
@@ -20,13 +22,18 @@ class pluginAdminUriRefilter extends Plugin {
         );
     }
 
-    // 2. Method called on plugin settings on the admin area
+    /**
+     * Method called on plugin settings on the admin area
+     */
     public function form()
     {
         global $L;
+        global $security;
 
-        // Display plugin description
         $html = '<p class="alert alert-primary">' . $this->description() . '</p>';
+
+        // CSRF protection with custom token
+        $html .= '<input type="hidden" name="tokenPlugin" value="' . $security->getTokenCSRF() . '">';
 
         // [Feature C] MANUAL REWRITE AUTO-SYNC
         $dbFilter = $this->getValue('savedAdminUriFilter');
@@ -60,25 +67,47 @@ class pluginAdminUriRefilter extends Plugin {
         $pendingFilter = Session::get('pending_admin_uri_filter');
         
         if (!empty($pendingFilter)) {
-            $displayValue = $pendingFilter;
+            if (ADMIN_URI_FILTER === $pendingFilter) {
+                Session::remove('pending_admin_uri_filter');
+                $displayValue = $pendingFilter;
+            } else {
+                $displayValue = $pendingFilter;
+            }
         } elseif (!empty($dbFilter)) {
             $displayValue = $dbFilter;
         } else {
             $displayValue = ADMIN_URI_FILTER;
         }
 
+        // Lock input field if redirect prompt is active
+        $disabledAttr = '';
+        if ($btnUrl) {
+            $disabledAttr = ' readonly style="background-color: #e9ecef; cursor: not-allowed;"';
+        }
+
         // Input Form
         $html .= '<div>';
         $html .= '<label>' . $L->get('admin-uri-filter-constant') . '</label>';
-        $html .= '<input name="adminUriFilter" type="text" class="form-control" value="' . sanitize::html($displayValue) . '" pattern="^[a-zA-Z0-9_-]+$" title="Alphanumeric characters, hyphens, and underscores only." required>';
+        $html .= '<input name="adminUriFilter" type="text" class="form-control" value="' . sanitize::html($displayValue) . '" pattern="^[a-zA-Z0-9_-]+$" title="Alphanumeric characters, hyphens, and underscores only." required' . $disabledAttr . '>';
         $html .= '</div>';
 
         return $html;
     }
 
-    // 3. Method called when the user clicks on the Save button
+    /**
+     * Method called when the user clicks on the Save button
+     */
     public function post()
     {
+        // CSRF Token validation
+        if (isset($_POST['adminUriFilter'])) {
+            global $security;
+
+            if (!isset($_POST['tokenPlugin']) || !$security->validateTokenCSRF($_POST['tokenPlugin'])) {
+                return false; 
+            }
+        }
+
         $newFilter = isset($_POST['adminUriFilter']) ? trim($_POST['adminUriFilter']) : '';
 
         // Validation check
@@ -95,14 +124,25 @@ class pluginAdminUriRefilter extends Plugin {
         return parent::post();
     }
 
-    // 4. Hook executed after the admin area has loaded
+    /**
+     * Hook executed after the admin area has loaded
+     */
     public function afterAdminLoad()
     {
         global $L;
 
         $login = new Login();
-        if ($login->isLogged()) {
+        
+        // Restrict execution to logged-in users with administrator privileges
+        if ($login->isLogged() && $login->role() === 'admin') {
             
+            // Skip execution on Ajax background requests to prevent data loss or unexpected redirects
+            if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                return;
+            }
+
+            $file_path = PATH_BOOT . 'variables.php';
+
             // ==========================================
             // [Feature A] AUTOMATIC RECOVERY
             // ==========================================
@@ -125,25 +165,17 @@ class pluginAdminUriRefilter extends Plugin {
                             $writeSuccess = file_put_contents($file_path, $new_content, LOCK_EX);
                             
                             if ($writeSuccess !== false) {
-                                // Set auto-recovery alert for the next page load
-                                Alert::set(sprintf($L->get('core-reset-auto-recovered-alert'), $savedFilter));
-                                
                                 // Get absolute path for the recovered dashboard
                                 $recoveredDashboard = HTML_PATH_ROOT . $savedFilter . '/dashboard';
-                                
-                                // Execute stealth redirection via client-side JavaScript replace
                                 echo '<script>';
                                 echo 'window.location.replace("' . sanitize::html($recoveredDashboard) . '");';
                                 echo '</script>';
                                 exit; // Stop further 404 rendering processes
                             } else {
-                                // Infinite loop prevention safety trigger
-                                Alert::set('Plugin Error: [Admin URI Refilter] Failed to write to variables.php. Auto-recovery aborted to prevent loop.', Log::TYPE_ERROR);
                                 return;
                             }
                         }
                     } else {
-                        Alert::set('Plugin Error: [Admin URI Refilter] Invalid characters detected in savedAdminUriFilter. Auto-recovery aborted.', Log::TYPE_ERROR);
                         return;
                     }
                 }
@@ -155,7 +187,10 @@ class pluginAdminUriRefilter extends Plugin {
             $pendingFilter = Session::get('pending_admin_uri_filter');
 
             if ($pendingFilter) {
-                $file_path = PATH_BOOT . 'variables.php';
+                if (ADMIN_URI_FILTER === $pendingFilter) {
+                    Session::remove('pending_admin_uri_filter');
+                    return;
+                }
 
                 if (is_writable($file_path)) {
                     if (preg_match('/^[a-zA-Z0-9_-]+$/', $pendingFilter)) {
@@ -164,16 +199,31 @@ class pluginAdminUriRefilter extends Plugin {
                         $replacement = "define('ADMIN_URI_FILTER', '" . $pendingFilter . "');";
                         $new_content = preg_replace($pattern, $replacement, $content);
 
-                        if ($new_content !== null) {
-                            file_put_contents($file_path, $new_content, LOCK_EX);
+                        if ($new_content !== null && $content !== $new_content) {
+                            $tmp_file = $file_path . '.' . time() . mt_rand(1000, 9999) . '.tmp';
+                            if (file_put_contents($tmp_file, $new_content, LOCK_EX) !== false) {
+                                if (rename($tmp_file, $file_path)) {
+                                    if (function_exists('opcache_invalidate')) {
+                                        @opcache_invalidate($file_path, true);
+                                    }
+                                    
+                                    // 💡 Feature B Success Notification
+                                    // Displayed to the admin upon successful manual rewrite and migration to the new URL
+                                    $msg = sprintf($L->get('core-rewrite-success-alert'), sanitize::html($pendingFilter));
+                                    Alert::set($msg, Log::TYPE_INFO);
+                                    
+                                    Session::remove('pending_admin_uri_filter');
+                                } else {
+                                    @unlink($tmp_file);
+                                    return;
+                                }
+                            }
                         }
                     } else {
                         Session::remove('pending_admin_uri_filter');
-                        Alert::set('Plugin Error: [Admin URI Refilter] Invalid characters detected in pending_admin_uri_filter. Rewrite aborted.', Log::TYPE_ERROR);
                         return;
                     }
                 }
-                Session::remove('pending_admin_uri_filter');
             }
         }
     }
