@@ -72,7 +72,6 @@ This Bludit CMS plugin allows you to safely customize your administration area U
 
 ### 3. Optimized User Experience & Operations
 - **Ajax Request Filtering:** Implemented a safe guard-clause to intercept and skip background requests (`xmlhttprequest`), preserving critical data integrity and eliminating unexpected client-side behavior during asynchronous communication.
-- **Polished Manual Save Workflows:** Enhanced `[Feature B]` by incorporating a clean, dedicated success notification using `Log::TYPE_INFO`, seamlessly guiding the administrator to transition to their new secure workspace.
 
 ---
 
@@ -84,9 +83,8 @@ This Bludit CMS plugin allows you to safely customize your administration area U
 - **UIセーフガード（二重操作防止）**: 誘導ボタンのアクティブ時、二重送信や矛盾した入力を防ぐため、入力フィールドを `readonly` 化（背景色・カーソル制御付き）してフォーム入力をロックする機構を導入しました。
 
 ### 2. ファイル操作の安定性向上（500エラー・破損の防止）
-- **アトミック（原子性）書き込みの導入**: `variables.php` を直接書き換えるのではなく、一度一意な一時ファイル（`.tmp`）を作成した上で `rename()` を用いて一瞬でファイルを置き換える安全な書き換えフローに変更しました。書き込み中の並行アクセスによるファイル破損リスク（ホワイトアウト）を完全に排除します。
+- **アトミック（原子性）書き込みの導入**: `variables.php` を直接書き換えるのではなく、一度一意な一時ファイル（`.tmp`）を作成した上で `rename()` を用いて一瞬でファイルを置き換える安全な書き換えフローに変更しました。書き込み中の並行アクセスによるファイル破損リスク（ホワイトアウト）を排除します。
 - **OpCacheの即時無効化**: ファイルの変更成功時に `opcache_invalidate()` を実行するコードを追加し、サーバー環境依存によるPHPキャッシュラグ（一時的な404エラー）を防止します。
 
 ### 3. UX・運用管理の最適化
 - **非同期通信（Ajax）の除外**: バックグラウンドでの通信（`xmlhttprequest`）実行時は処理を早期リターンさせ、不要なリダイレクトや意図しないデータ消失を防ぐ安全弁を追加しました。
-- **手動保存時の通知UI強化**: 手動でURLを変更する `[Feature B]` の成功時、単に書き換えるだけでなく、管理者に新しいURLへの移行を促す美しいインフォメーション通知（`Log::TYPE_INFO`）が表示されるよう処理を追加しました。
